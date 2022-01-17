@@ -9,36 +9,20 @@
         {% for recipe in recipes %}
         <div class="col-sm-4">
             <div class="card text-center mt-3" style="width: 18rem;">
-                <h5>{{recipes[0].title}}</h5>
-                <img src="https://image.freepik.com/free-photo/chicken-wings-barbecue-sweetly-sour-sauce-picnic-summer-menu-tasty-food-top-view-flat-lay_2829-6471.jpg"
-                    class="card-img-top" alt="BBQ Sweet and Sour Chicken Wings" />
+                <h5>{{recipe[1]}}</h5>
+                <img src="{{recipe[2]}}" class="card-img-top" alt="{{recipe[1]}}" />
                 <div class="card-body d-flex justify-content-center">
                     <p class="card-text">
-                        <a target="_blank" rel="noopener noreferrer"
-                            href="https://cookpad.com/us/recipes/347447-easy-sweet-sour-bbq-chicken">Visit Page</a>
+                        <a target="_blank" rel="noopener noreferrer" href="{{recipe[3]}}">Visit Page</a>
                     </p>
                 </div>
                 <div class="card-footer d-flex justify-content-between">
-                    <a href="#" class="btn btn-primary">Edit</a>
-                    <a href="#" class="btn btn-danger">Delete</a>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="row">
-        <div class="col-sm-4">
-            <div class="card text-center mt-3" style="width: 18rem;">
-                <h5>{{recipes[1].title}}</h5>
-                <img src="https://www.jocooks.com/wp-content/uploads/2018/01/spaghetti-bolognese-1-3-500x375.jpg"
-                    class="card-img-top" alt="Pasta Bolognese" />
-                <div class="card-body d-flex justify-content-center">
-                    <p class="card-text">
-                        <a target="_blank" rel="noopener noreferrer" href={{recipes[1].link}}>Visit Page</a>
-                    </p>
-                </div>
-                <div class="card-footer d-flex justify-content-between">
-                    <a href="#" class="btn btn-primary">Edit</a>
-                    <a href="#" class="btn btn-danger">Delete</a>
+                    <form method='post' action="recipe/{{recipe[0]}}">
+                        <button type="submit" class=" btn btn-primary">Edit</button>
+                    </form>
+                    <form method="post" action="recipe/delete/{{recipe[0]}}/">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
                 </div>
             </div>
         </div>
