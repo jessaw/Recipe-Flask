@@ -23,7 +23,7 @@ def execute_query(connection, query, values= ()):
     # print(values)
     try:
         if len(values) > 0:
-            connection.execute(query,values)
+            connection.execute(query,(values,))
         else:
             connection.execute(query)
         connection.commit()
@@ -101,28 +101,15 @@ def show_recipe(id):
             title = form.title.data
             image = form.image.data
             link = form.link.data
-            update_query = '''UPDATE recipes set title=?, image=?, link=?'''
+            update_query = f'''UPDATE recipes set title=?, image=?, link=? WHERE id={id}'''
             execute_query(conn, update_query, (title, image, link))
             return redirect(url_for('home'))
     select_query = f'''SELECT * FROM recipes WHERE id={id}'''
     recipe = execute_read_query(conn, select_query)
-    çform = CreateRecipeForm(link=recipe[0][3], title=recipe[0][1], image=recipe[0][2])
+    form = CreateRecipeForm(link=recipe[0][3], title=recipe[0][1], image=recipe[0][2])
     return render_template('edit_recipe.html', form=form, id=id)
 
-    # form = CreateRecipeForm()
-    # if request.method == 'POST':
-    #     form = CreateRecipeForm(request.form)
-    #     if form.validate():
-    #         title = form.title.data
-    #         image = form.image.data
-    #         link = form.link.data
-    #         update_query = '''UPDATE recipes set title=?, image=?, link=?'''
-    #         execute_query(conn, update_query, (title, image, link))
-    #         return redirect(url_for('home'))
-    # recipe = execute_read_query(
-    #     conn, '''SELECT * FROM recipes WHERE id=?''',id)
-    # form = CreateRecipeForm(link=recipe[0][3], title=recipe[0][1], image=recipe[0][2])
-    # return render_template('edit_recipe.html', form=form, id=id)
+   
 
 
 recipes = [
