@@ -23,7 +23,7 @@ def execute_query(connection, query, values= ()):
     # print(values)
     try:
         if len(values) > 0:
-            connection.execute(query,(values,))
+            connection.execute(query,values)
         else:
             connection.execute(query)
         connection.commit()
@@ -45,7 +45,6 @@ def execute_read_query(connection, query):
     try:
         cursor.execute(query)
         result = cursor.fetchall()
-        print(result)
         return result
     except Error as e:
         print(f"The error '{e}' occurred")
@@ -54,6 +53,15 @@ class CreateRecipeForm(Form):
     title = StringField('Recipe Title', [validators.Length(min=4, max=50)])
     image = StringField('Image Address', [validators.Length(min=10)])
     link = StringField('Link Address', [validators.Length(min=10)])
+
+
+create_users_table = '''
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY, 
+    username TEXT NOT NULL, 
+    password TEXT NOT NULL,
+);
+'''
 
 
 @app.route('/recipe/', methods=['POST', 'GET'])
@@ -89,7 +97,7 @@ def about():
 
 @app.route('/recipe/delete/<id>/', methods=['POST'])
 def delete_recipe(id):
-    execute_query(conn, '''DELETE FROM recipes WHERE id=?''', (id))
+    execute_query(conn, '''DELETE FROM recipes WHERE id=?''', [id])
     return redirect(url_for("home"))
 
 @app.route('/recipe/<id>', methods=['GET', 'POST'])
@@ -102,14 +110,24 @@ def show_recipe(id):
             image = form.image.data
             link = form.link.data
             update_query = f'''UPDATE recipes set title=?, image=?, link=? WHERE id={id}'''
-            execute_query(conn, update_query, (title, image, link))
+            print(title)
+            execute_query(conn, update_query, [title, image, link])
             return redirect(url_for('home'))
     select_query = f'''SELECT * FROM recipes WHERE id={id}'''
     recipe = execute_read_query(conn, select_query)
     form = CreateRecipeForm(link=recipe[0][3], title=recipe[0][1], image=recipe[0][2])
     return render_template('edit_recipe.html', form=form, id=id)
 
-   
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        if request.form['username'] != 'admin' or request.form['password'] != 'admin':
+            error = 'Invalid Credentials. Please try again.'
+        else:
+            session['logged_in'] = True
+            return redirect(url_for('home.html'))
+    return render_template('login.html', error=error)
 
 
 recipes = [
@@ -128,5 +146,6 @@ recipes = [
 if __name__ == '__main__':
 
     conn =create_connection("recipesjess.db")
-    execute_query(conn,create_recipesjess_table)
+   
+    execute_query(conn,create_users_table)
     app.run(debug=True)
