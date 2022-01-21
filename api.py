@@ -1,11 +1,15 @@
 from multiprocessing import connection
-from flask import Flask, render_template, request,redirect,url_for
+from re import U
+from flask import Flask, render_template, request,redirect,url_for,make_response
+from flask_bcrypt import Bcrypt
 import sqlite3
 from sqlite3 import Error
-from wtforms import Form, StringField, validators
+from wtforms import Form, StringField, validators,PasswordField
 app = Flask(__name__)
+bcrypt = Bcrypt(app)
+from itsdangerous import URLSafeSerializer
 
-
+auth_s = URLSafeSerializer("SUPER_SECRET_KEY")  #use auth.dumps to encrpty password or cookie
 
 def create_connection(path):
     connection = None
@@ -19,8 +23,6 @@ def create_connection(path):
 
 
 def execute_query(connection, query, values= ()):
-    # cursor = connection.cursor()
-    # print(values)
     try:
         if len(values) > 0:
             connection.execute(query,values)
@@ -31,14 +33,6 @@ def execute_query(connection, query, values= ()):
     except Error as e:
         print(f"The error{e} occurred")
 
-create_recipesjess_table = """
-CREATE TABLE IF NOT EXISTS recipes (
-  id INTEGER PRIMARY KEY,
-  title TEXT NOT NULL,
-  image BLOB NOT NULL,
-  link INTEGER NOT NULL
-);
-"""
 def execute_read_query(connection, query):
     cursor = connection.cursor()
     result = None
@@ -54,15 +48,33 @@ class CreateRecipeForm(Form):
     image = StringField('Image Address', [validators.Length(min=10)])
     link = StringField('Link Address', [validators.Length(min=10)])
 
+class CreateLoginForm(Form):
+    user= StringField('User', [validators.Length(min=4, max=50)])
+    password= PasswordField('Password', [validators.Length(min=4, max=50)])
 
+class RegistrationForm(Form):
+    user= StringField('User', [validators.Length(min=4, max=50)])
+    password= PasswordField('Password', [validators.Length(min=4, max=50)])
+
+
+
+# SQLITE3
+create_recipesjess_table = """
+CREATE TABLE IF NOT EXISTS recipes (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL,
+  image BLOB NOT NULL,
+  link INTEGER NOT NULL
+);
+"""
 create_users_table = '''
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY, 
     username TEXT NOT NULL, 
-    password TEXT NOT NULL,
+    password TEXT NOT NULL
 );
 '''
-
+#  Routes for the project
 
 @app.route('/recipe/', methods=['POST', 'GET'])
 def create_recipe():
@@ -83,17 +95,18 @@ def create_recipe():
 
 @app.route('/')
 def home():
-    fetch_query =''' 
+    cookie = request.cookies.get('userID')
+    if cookie == None:
+            return '<h1> Sorry, you are not logged in</h1>'
+    allrecipes=execute_read_query(conn,''' 
         SELECT  * FROM recipes
-        '''
-
-    allrecipes=execute_read_query(conn,fetch_query)
-    # print(allrecipes)
+        ''')
     return render_template("home.html",recipes=allrecipes)
 
 @app.route('/about')
 def about():
-    return render_template("about.html")
+    userID = request.cookies.get('userID')
+    return render_template("about.html", userID=userID)
 
 @app.route('/recipe/delete/<id>/', methods=['POST'])
 def delete_recipe(id):
@@ -118,17 +131,50 @@ def show_recipe(id):
     form = CreateRecipeForm(link=recipe[0][3], title=recipe[0][1], image=recipe[0][2])
     return render_template('edit_recipe.html', form=form, id=id)
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    error = None
-    if request.method == 'POST':
-        if request.form['username'] != 'admin' or request.form['password'] != 'admin':
-            error = 'Invalid Credentials. Please try again.'
-        else:
-            session['logged_in'] = True
-            return redirect(url_for('home.html'))
-    return render_template('login.html', error=error)
 
+# Create Login Form 
+@app.route('/login', methods = ['POST','GET'])
+def login():
+    form = CreateLoginForm()
+    if request.method == "POST":
+        form = CreateLoginForm(request.form)
+        if form.validate():
+            username = form.user.data
+            password = form.password.data
+            # password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+            # user_query = '''SELECT * FROM users WHERE user ='''+ user + ''''''
+            # resp = None
+            try:
+                user = execute_read_query(conn,'''SELECT * FROM users WHERE user ='''+ username + '''''' )
+                if bcrypt.checkpw(password.encode('utf-8'),user[0][2]):
+        
+                # if username[0][1] == user and username[0][2] == password:
+                #     print('Logged in!')
+                    resp = make_response(redirect(url_for('home')))
+                    resp.set_cookie('userID', str(auth_s.dumps(user[0][0])))
+                else:
+                    raise Exception('Invalid Credentials. Please try again')
+                return resp
+            except Exception as e:
+                print(e)
+                return '<h1> Sorry, you are not logged in, please request access </h1>'
+    return render_template('login.html', form=form)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    form = RegistrationForm()
+    if request.method == 'POST':
+        form = RegistrationForm(request.form)
+        if form.validate():
+            username = form.user.data
+            password = form.password.data
+            hashed = bcrypt.hashpw(password.encode('utf-8'),bcrypt.gensalt())
+            # password = bcrypt.generate_password_hash(form.password.data).decode('utf-8') 
+            insert_user = '''INSERT INTO users (user, password) VALUES (?,?)'''
+            data = (username, hashed)
+            execute_query(conn, insert_user, data)
+            return redirect(url_for('login'))
+    return render_template('register.html', form=form)
 
 recipes = [
         {
@@ -146,6 +192,6 @@ recipes = [
 if __name__ == '__main__':
 
     conn =create_connection("recipesjess.db")
-   
+    execute_query(conn,create_recipesjess_table)
     execute_query(conn,create_users_table)
     app.run(debug=True)
